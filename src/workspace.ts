@@ -23,6 +23,12 @@ export const writeDoc = (path: string, content: string) =>
 
 export const createDoc = () => invoke<DocMeta>("create_doc");
 
+export const deleteDoc = (path: string) =>
+  invoke<string>("delete_doc", { path });
+
+export const restoreDoc = (trashPath: string) =>
+  invoke<DocMeta>("restore_doc", { trashPath });
+
 export const readState = () => invoke<AppState>("read_state");
 
 export const writeState = (state: AppState) =>

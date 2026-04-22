@@ -46,6 +46,8 @@ pub fn run() {
             workspace::read_doc,
             workspace::write_doc,
             workspace::create_doc,
+            workspace::delete_doc,
+            workspace::restore_doc,
             workspace::read_state,
             workspace::write_state,
         ])

@@ -14,6 +14,7 @@ import { tags } from "@lezer/highlight";
 interface EditorProps {
   initialContent: string;
   onChange: (content: string) => void;
+  active?: boolean;
 }
 
 const zenHighlight = HighlightStyle.define([
@@ -69,7 +70,7 @@ const zenTheme = EditorView.theme({
   },
 });
 
-export function Editor({ initialContent, onChange }: EditorProps) {
+export function Editor({ initialContent, onChange, active }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
@@ -121,6 +122,12 @@ export function Editor({ initialContent, onChange }: EditorProps) {
       });
     }
   }, [initialContent]);
+
+  useEffect(() => {
+    if (active && viewRef.current) {
+      viewRef.current.focus();
+    }
+  }, [active]);
 
   return <div ref={hostRef} className="h-full w-full" />;
 }

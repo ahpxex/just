@@ -157,6 +157,56 @@ pub fn create_doc(app: AppHandle) -> Result<DocMeta, String> {
 }
 
 #[tauri::command]
+pub fn delete_doc(app: AppHandle, path: String) -> Result<String, String> {
+    let root = ensure_workspace(&app)?;
+    let trash = root.join(".just/trash");
+    let src = Path::new(&path);
+    if !src.exists() {
+        return Err("file not found".into());
+    }
+    let filename = src
+        .file_name()
+        .ok_or_else(|| "invalid path".to_string())?
+        .to_string_lossy()
+        .to_string();
+    let stamp = Local::now().format("%Y-%m-%d-%H%M%S");
+    let dest = trash.join(format!("{}__{}", stamp, filename));
+    fs::rename(src, &dest).map_err(|e| e.to_string())?;
+    Ok(dest.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn restore_doc(app: AppHandle, trash_path: String) -> Result<DocMeta, String> {
+    let root = ensure_workspace(&app)?;
+    let src = Path::new(&trash_path);
+    if !src.exists() {
+        return Err("trash file not found".into());
+    }
+    let filename = src
+        .file_name()
+        .ok_or_else(|| "invalid path".to_string())?
+        .to_string_lossy()
+        .to_string();
+    // Trash filename format: "{YYYY-MM-DD-HHMMSS}__{original}"
+    let original = filename
+        .split_once("__")
+        .map(|(_, rest)| rest)
+        .unwrap_or(&filename);
+    let mut dest = root.join(original);
+    let mut n = 1u32;
+    while dest.exists() {
+        let stem = Path::new(original)
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy();
+        dest = root.join(format!("{}-restored-{}.md", stem, n));
+        n += 1;
+    }
+    fs::rename(src, &dest).map_err(|e| e.to_string())?;
+    build_meta(&dest)
+}
+
+#[tauri::command]
 pub fn read_state(app: AppHandle) -> Result<AppState, String> {
     let root = ensure_workspace(&app)?;
     let state_path = root.join(STATE_FILE);
