@@ -1,0 +1,37 @@
+@import "tailwindcss";
+@import "lxgw-wenkai-webfont/lxgwwenkai-regular.css";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-ink: #1a1a18;
+  --color-ink-soft: #3a3a36;
+  --color-ink-faint: #8a8782;
+  --color-paper: #faf8f3;
+  --color-paper-deep: #f3efe6;
+  --color-mist: #c9c3b4;
+
+  --font-serif:
+    "LXGW WenKai", "EB Garamond", "Songti SC", "STSong", "Noto Serif CJK SC",
+    serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+:root {
+  color-scheme: light;
+}
