@@ -35,3 +35,11 @@ body {
 :root {
   color-scheme: light;
 }
+
+.cm-scroller {
+  scrollbar-width: none;
+}
+
+.cm-scroller::-webkit-scrollbar {
+  display: none;
+}
