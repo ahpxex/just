@@ -13,6 +13,15 @@ export function installShortcutBlocker() {
           e.stopImmediatePropagation();
         }
       }
+
+      // Alt+F4 on Windows: prevent_close also catches the CloseRequested,
+      // this is defense in depth.
+      if (e.altKey && e.key === "F4") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+
       if (e.key === "F11") {
         e.preventDefault();
       }

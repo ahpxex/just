@@ -16,7 +16,8 @@
         "title": "just",
         "width": 1200,
         "height": 800,
-        "fullscreen": true,
+        "decorations": false,
+        "resizable": false,
         "closable": false,
         "minimizable": false,
         "maximizable": false

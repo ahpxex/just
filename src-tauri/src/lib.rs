@@ -1,4 +1,7 @@
+mod lock;
 mod workspace;
+
+use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,7 +40,18 @@ pub fn run() {
                     .build()?;
 
                 let _ = app.set_menu(menu)?;
+
+                lock::lock_presentation();
             }
+
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(Some(monitor)) = window.primary_monitor() {
+                    let size = monitor.size();
+                    let _ = window.set_size(PhysicalSize::new(size.width, size.height));
+                    let _ = window.set_position(PhysicalPosition::new(0i32, 0i32));
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -51,22 +65,10 @@ pub fn run() {
             workspace::read_state,
             workspace::write_state,
         ])
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+        .on_window_event(|_window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
             }
-            tauri::WindowEvent::Resized(_) => {
-                // User can escape macOS native fullscreen via Esc, mouse-to-top,
-                // or Ctrl+Cmd+F. Snap back in.
-                if matches!(window.is_fullscreen(), Ok(false)) {
-                    let window = window.clone();
-                    std::thread::spawn(move || {
-                        std::thread::sleep(std::time::Duration::from_millis(120));
-                        let _ = window.set_fullscreen(true);
-                    });
-                }
-            }
-            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building just")
