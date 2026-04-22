@@ -8,13 +8,14 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
-import { searchKeymap } from "@codemirror/search";
+import { search } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
 
 interface EditorProps {
   initialContent: string;
   onChange: (content: string) => void;
   active?: boolean;
+  onViewReady?: (view: EditorView | null) => void;
 }
 
 const zenHighlight = HighlightStyle.define([
@@ -42,7 +43,7 @@ const zenHighlight = HighlightStyle.define([
 const zenTheme = EditorView.theme({
   "&": {
     height: "100%",
-    fontSize: "17px",
+    fontSize: "22px",
     color: "var(--color-ink)",
     backgroundColor: "transparent",
   },
@@ -52,14 +53,14 @@ const zenTheme = EditorView.theme({
     lineHeight: "2",
   },
   ".cm-content": {
-    padding: "14vh 0",
-    maxWidth: "680px",
+    padding: "16vh 0",
+    maxWidth: "760px",
     margin: "0 auto",
     caretColor: "var(--color-ink-soft)",
     minHeight: "100%",
     boxSizing: "border-box",
   },
-  ".cm-line": { padding: "0 24px" },
+  ".cm-line": { padding: "0 32px" },
   "&.cm-focused": { outline: "none" },
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "var(--color-ink-soft)",
@@ -68,16 +69,35 @@ const zenTheme = EditorView.theme({
   ".cm-selectionBackground, ::selection": {
     backgroundColor: "var(--color-paper-deep) !important",
   },
+  ".cm-searchMatch": {
+    backgroundColor: "rgba(201, 195, 180, 0.35)",
+  },
+  ".cm-searchMatch-selected": {
+    backgroundColor: "rgba(138, 135, 130, 0.55)",
+  },
+  // The library still reserves a panel area; keep it collapsed in case
+  // something triggers openSearchPanel by accident.
+  ".cm-panels": { display: "none" },
 });
 
-export function Editor({ initialContent, onChange, active }: EditorProps) {
+export function Editor({
+  initialContent,
+  onChange,
+  active,
+  onViewReady,
+}: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
+  const onViewReadyRef = useRef(onViewReady);
 
   useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
+
+  useEffect(() => {
+    onViewReadyRef.current = onViewReady;
+  }, [onViewReady]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -90,7 +110,8 @@ export function Editor({ initialContent, onChange, active }: EditorProps) {
         bracketMatching(),
         markdown(),
         syntaxHighlighting(zenHighlight),
-        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+        search({ top: true }),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
         zenTheme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -102,9 +123,11 @@ export function Editor({ initialContent, onChange, active }: EditorProps) {
 
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+    onViewReadyRef.current?.(view);
     view.focus();
 
     return () => {
+      onViewReadyRef.current?.(null);
       view.destroy();
       viewRef.current = null;
     };

@@ -33,3 +33,5 @@ export const readState = () => invoke<AppState>("read_state");
 
 export const writeState = (state: AppState) =>
   invoke<void>("write_state", { state });
+
+export const devForceQuit = () => invoke<void>("dev_force_quit");

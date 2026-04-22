@@ -1,5 +1,7 @@
 import { useAtom, useSetAtom } from "jotai";
+import type { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { devForceQuit } from "./workspace";
 import {
   createDoc,
   deleteDoc,
@@ -19,6 +21,7 @@ import {
   workspacePathAtom,
 } from "./atoms";
 import { Drawer } from "./components/Drawer";
+import { SearchPanel } from "./components/SearchPanel";
 import { WritingSurface } from "./components/WritingSurface";
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -30,12 +33,14 @@ function App() {
   const setDocuments = useSetAtom(documentsAtom);
   const [mode, setMode] = useAtom(modeAtom);
   const [ready, setReady] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const initRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
   const pendingSave = useRef<{ path: string; content: string } | null>(null);
   const modeRef = useRef(mode);
   const currentPathRef = useRef<string | null>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -44,6 +49,10 @@ function App() {
   useEffect(() => {
     currentPathRef.current = currentDoc?.path ?? null;
   }, [currentDoc]);
+
+  const handleViewReady = useCallback((view: EditorView | null) => {
+    editorViewRef.current = view;
+  }, []);
 
   const flushSave = useCallback(async () => {
     if (saveTimer.current !== null) {
@@ -177,16 +186,23 @@ function App() {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       const key = e.key.toLowerCase();
-      if (key === "n") {
+      if (key === "n" && !e.altKey) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         void createNewDocument();
-      } else if (key === "k") {
+      } else if (key === "k" && !e.altKey) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         void toggleDrawer();
+      } else if (key === "f" && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (modeRef.current === "writing") {
+          setSearchOpen(true);
+        }
       }
     };
     window.addEventListener("keydown", handler, { capture: true });
@@ -215,6 +231,11 @@ function App() {
     [currentDoc, setContent, setCurrentDoc],
   );
 
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    editorViewRef.current?.focus();
+  }, []);
+
   if (!ready || !currentDoc) {
     return <main className="bg-paper h-full w-full" />;
   }
@@ -224,14 +245,26 @@ function App() {
       <WritingSurface
         content={content}
         onChange={handleChange}
-        active={mode === "writing"}
+        active={mode === "writing" && !searchOpen}
+        onViewReady={handleViewReady}
       />
+      {searchOpen && mode === "writing" && (
+        <SearchPanel view={editorViewRef.current} onClose={closeSearch} />
+      )}
       {mode === "drawer" && (
         <Drawer
           onOpen={openDocument}
           onClose={() => setMode("writing")}
           onDelete={handleDelete}
           onRestore={handleRestore}
+        />
+      )}
+      {import.meta.env.DEV && (
+        <button
+          type="button"
+          onClick={() => void devForceQuit()}
+          title="dev: force quit"
+          className="bg-ink-faint/30 hover:bg-ink-soft fixed top-2 right-2 z-50 h-2 w-2 rounded-full transition-colors"
         />
       )}
     </main>
