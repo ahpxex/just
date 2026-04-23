@@ -70,10 +70,13 @@ const zenTheme = EditorView.theme({
     backgroundColor: "var(--color-paper-deep) !important",
   },
   ".cm-searchMatch": {
-    backgroundColor: "rgba(201, 195, 180, 0.35)",
+    backgroundColor: "rgba(156, 108, 64, 0.20)",
+    borderBottom: "1px solid rgba(94, 65, 38, 0.55)",
   },
   ".cm-searchMatch-selected": {
-    backgroundColor: "rgba(138, 135, 130, 0.55)",
+    backgroundColor: "var(--color-ink-soft)",
+    color: "var(--color-paper)",
+    borderBottom: "none",
   },
   // The library still reserves a panel area; keep it collapsed in case
   // something triggers openSearchPanel by accident.
