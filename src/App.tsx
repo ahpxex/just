@@ -1,13 +1,14 @@
 import { useAtom, useSetAtom } from "jotai";
 import type { EditorView } from "@codemirror/view";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { devForceQuit } from "./workspace";
 import {
   createDoc,
   deleteDoc,
   listDocs,
   readDoc,
   readState,
+  recordSession,
+  requestExit,
   restoreDoc,
   writeDoc,
   writeState,
@@ -22,9 +23,26 @@ import {
 } from "./atoms";
 import { Drawer } from "./components/Drawer";
 import { SearchPanel } from "./components/SearchPanel";
+import { SessionDialog } from "./components/SessionDialog";
 import { WritingSurface } from "./components/WritingSurface";
+import { type SessionSnapshot, useSessionTracker } from "./session";
+import { wordCount } from "./words";
 
 const SAVE_DEBOUNCE_MS = 600;
+const SESSION_LENGTH_MS = (() => {
+  if (import.meta.env.DEV) {
+    const override = Number(import.meta.env.VITE_SESSION_SECONDS);
+    if (Number.isFinite(override) && override > 0) return override * 1000;
+  }
+  return 42 * 60 * 1000;
+})();
+
+interface SessionDialogData {
+  words: number;
+  keystrokes: number;
+  totalWritingMs: number;
+  sessionsCompleted: number;
+}
 
 function App() {
   const setWorkspacePath = useSetAtom(workspacePathAtom);
@@ -34,6 +52,7 @@ function App() {
   const [mode, setMode] = useAtom(modeAtom);
   const [ready, setReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [dialogData, setDialogData] = useState<SessionDialogData | null>(null);
 
   const initRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
@@ -41,6 +60,7 @@ function App() {
   const modeRef = useRef(mode);
   const currentPathRef = useRef<string | null>(null);
   const editorViewRef = useRef<EditorView | null>(null);
+  const contentRef = useRef(content);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -49,6 +69,10 @@ function App() {
   useEffect(() => {
     currentPathRef.current = currentDoc?.path ?? null;
   }, [currentDoc]);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   const handleViewReady = useCallback((view: EditorView | null) => {
     editorViewRef.current = view;
@@ -66,6 +90,32 @@ function App() {
       setCurrentDoc(meta);
     }
   }, [setCurrentDoc]);
+
+  const handleSessionComplete = useCallback(
+    async (snapshot: SessionSnapshot) => {
+      if (!snapshot.docPath) return;
+      await flushSave();
+      const stats = await recordSession(
+        snapshot.docPath,
+        snapshot.activeMs,
+        snapshot.keystrokes,
+        true,
+      );
+      setDialogData({
+        words: wordCount(contentRef.current),
+        keystrokes: snapshot.keystrokes,
+        totalWritingMs: stats.totalWritingMs,
+        sessionsCompleted: stats.sessionsCompleted,
+      });
+    },
+    [flushSave],
+  );
+
+  const { resetSession } = useSessionTracker({
+    docPath: currentDoc?.path ?? null,
+    sessionLengthMs: SESSION_LENGTH_MS,
+    onComplete: handleSessionComplete,
+  });
 
   const openDocument = useCallback(
     async (path: string) => {
@@ -236,6 +286,26 @@ function App() {
     editorViewRef.current?.focus();
   }, []);
 
+  const handleDialogLeave = useCallback(async () => {
+    await flushSave();
+    await requestExit();
+  }, [flushSave]);
+
+  const handleDialogCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(contentRef.current);
+    } catch {
+      // Some environments block clipboard writes; fail silently in Zen spirit.
+    }
+    setDialogData(null);
+    resetSession();
+  }, [resetSession]);
+
+  const handleDialogContinue = useCallback(() => {
+    setDialogData(null);
+    resetSession();
+  }, [resetSession]);
+
   if (!ready || !currentDoc) {
     return <main className="bg-paper h-full w-full" />;
   }
@@ -245,13 +315,13 @@ function App() {
       <WritingSurface
         content={content}
         onChange={handleChange}
-        active={mode === "writing" && !searchOpen}
+        active={mode === "writing" && !searchOpen && dialogData === null}
         onViewReady={handleViewReady}
       />
-      {searchOpen && mode === "writing" && (
+      {searchOpen && mode === "writing" && dialogData === null && (
         <SearchPanel view={editorViewRef.current} onClose={closeSearch} />
       )}
-      {mode === "drawer" && (
+      {mode === "drawer" && dialogData === null && (
         <Drawer
           onOpen={openDocument}
           onClose={() => setMode("writing")}
@@ -259,10 +329,21 @@ function App() {
           onRestore={handleRestore}
         />
       )}
+      {dialogData && (
+        <SessionDialog
+          words={dialogData.words}
+          keystrokes={dialogData.keystrokes}
+          totalWritingMs={dialogData.totalWritingMs}
+          sessionsCompleted={dialogData.sessionsCompleted}
+          onLeave={handleDialogLeave}
+          onCopy={handleDialogCopy}
+          onContinue={handleDialogContinue}
+        />
+      )}
       {import.meta.env.DEV && (
         <button
           type="button"
-          onClick={() => void devForceQuit()}
+          onClick={() => void requestExit()}
           title="dev: force quit"
           className="bg-ink-faint/30 hover:bg-ink-soft fixed top-2 right-2 z-50 h-2 w-2 rounded-full transition-colors"
         />

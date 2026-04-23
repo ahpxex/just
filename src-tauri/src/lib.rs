@@ -1,13 +1,8 @@
 mod lock;
+mod stats;
 mod workspace;
 
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
-
-#[tauri::command]
-fn dev_force_quit() {
-    #[cfg(debug_assertions)]
-    std::process::exit(0);
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -70,7 +65,10 @@ pub fn run() {
             workspace::restore_doc,
             workspace::read_state,
             workspace::write_state,
-            dev_force_quit,
+            stats::read_stats,
+            stats::read_doc_stats,
+            stats::record_session,
+            stats::request_exit,
         ])
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

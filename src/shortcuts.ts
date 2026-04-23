@@ -1,4 +1,4 @@
-import { devForceQuit } from "./workspace";
+import { requestExit } from "./workspace";
 
 const BLOCKED_MOD_KEYS = new Set(["r", "w", "h", "m"]);
 
@@ -16,7 +16,7 @@ export function installShortcutBlocker() {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
-        void devForceQuit();
+        void requestExit();
         return;
       }
 

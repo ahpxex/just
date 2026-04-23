@@ -12,6 +12,12 @@ export interface AppState {
   currentDoc: string | null;
 }
 
+export interface DocStats {
+  totalWritingMs: number;
+  totalKeystrokes: number;
+  sessionsCompleted: number;
+}
+
 export const workspaceInit = () => invoke<string>("workspace_init");
 
 export const listDocs = () => invoke<DocMeta[]>("list_docs");
@@ -34,4 +40,20 @@ export const readState = () => invoke<AppState>("read_state");
 export const writeState = (state: AppState) =>
   invoke<void>("write_state", { state });
 
-export const devForceQuit = () => invoke<void>("dev_force_quit");
+export const readDocStats = (path: string) =>
+  invoke<DocStats>("read_doc_stats", { path });
+
+export const recordSession = (
+  path: string,
+  writingMs: number,
+  keystrokes: number,
+  completed: boolean,
+) =>
+  invoke<DocStats>("record_session", {
+    path,
+    writingMs,
+    keystrokes,
+    completed,
+  });
+
+export const requestExit = () => invoke<void>("request_exit");
