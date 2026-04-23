@@ -121,7 +121,7 @@ export function Drawer({ onOpen, onClose, onDelete, onRestore }: DrawerProps) {
           spellCheck={false}
         />
         {filtered.length === 0 ? (
-          <div className="text-ink-faint text-sm tracking-widest">无</div>
+          <div className="text-ink-faint text-sm tracking-widest">—</div>
         ) : (
           <ul>
             {filtered.map((doc, i) => (
@@ -135,7 +135,7 @@ export function Drawer({ onOpen, onClose, onDelete, onRestore }: DrawerProps) {
                     : "text-ink-faint hover:text-ink-soft"
                 }`}
               >
-                <div className="text-base">{doc.title || "未命名"}</div>
+                <div className="text-base">{doc.title || "untitled"}</div>
                 {doc.excerpt && (
                   <div className="text-ink-faint mt-1 text-sm">
                     {doc.excerpt}
@@ -148,7 +148,7 @@ export function Drawer({ onOpen, onClose, onDelete, onRestore }: DrawerProps) {
       </div>
       {pendingRestore && (
         <div className="text-ink-faint pointer-events-none fixed bottom-[8vh] left-1/2 -translate-x-1/2 text-sm tracking-widest">
-          已收走 · 按 Z 追回
+          discarded — press Z to restore
         </div>
       )}
     </div>
