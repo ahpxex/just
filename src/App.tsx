@@ -53,6 +53,7 @@ function App() {
   const [ready, setReady] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [dialogData, setDialogData] = useState<SessionDialogData | null>(null);
+  const [postSessionGrace, setPostSessionGrace] = useState(false);
 
   const initRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
@@ -111,10 +112,15 @@ function App() {
     [flushSave],
   );
 
+  const handleSessionStart = useCallback(() => {
+    setPostSessionGrace(false);
+  }, []);
+
   const { resetSession } = useSessionTracker({
     docPath: currentDoc?.path ?? null,
     sessionLengthMs: SESSION_LENGTH_MS,
     onComplete: handleSessionComplete,
+    onStart: handleSessionStart,
   });
 
   const openDocument = useCallback(
@@ -299,11 +305,13 @@ function App() {
     }
     setDialogData(null);
     resetSession();
+    setPostSessionGrace(true);
   }, [resetSession]);
 
   const handleDialogContinue = useCallback(() => {
     setDialogData(null);
     resetSession();
+    setPostSessionGrace(true);
   }, [resetSession]);
 
   if (!ready || !currentDoc) {
@@ -340,6 +348,18 @@ function App() {
           onContinue={handleDialogContinue}
         />
       )}
+      {postSessionGrace &&
+        dialogData === null &&
+        mode === "writing" &&
+        !searchOpen && (
+          <button
+            type="button"
+            onClick={handleDialogLeave}
+            className="text-ink-faint hover:text-ink ritual-in fixed top-6 right-8 z-30 text-xs tracking-[0.4em] decoration-[1px] underline-offset-[0.35em] transition-colors hover:underline"
+          >
+            leave
+          </button>
+        )}
       {import.meta.env.DEV && (
         <button
           type="button"

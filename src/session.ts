@@ -14,6 +14,7 @@ interface UseSessionTrackerOptions {
   idleThresholdMs?: number;
   tickMs?: number;
   onComplete: (snapshot: SessionSnapshot) => void;
+  onStart?: () => void;
 }
 
 const MODIFIER_ONLY_KEYS = new Set([
@@ -28,6 +29,35 @@ const MODIFIER_ONLY_KEYS = new Set([
   "NumLock",
   "ScrollLock",
 ]);
+
+const NAVIGATION_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+  "Escape",
+]);
+
+const WRITING_COMMAND_KEYS = new Set(["v", "x", "z", "y"]);
+
+function isWritingKey(e: KeyboardEvent): boolean {
+  if (MODIFIER_ONLY_KEYS.has(e.key)) return false;
+  if (NAVIGATION_KEYS.has(e.key)) return false;
+  if (/^F\d+$/.test(e.key)) return false;
+  if (e.metaKey || e.ctrlKey) {
+    return WRITING_COMMAND_KEYS.has(e.key.toLowerCase());
+  }
+  return true;
+}
+
+function isEditorFocused(): boolean {
+  const active = document.activeElement;
+  return !!active && active.closest(".cm-editor") !== null;
+}
 
 function emptySession(docPath: string | null): SessionSnapshot {
   return {
@@ -44,15 +74,21 @@ export function useSessionTracker({
   idleThresholdMs = 2 * 60 * 1000,
   tickMs = 5000,
   onComplete,
+  onStart,
 }: UseSessionTrackerOptions) {
   const sessionRef = useRef<SessionSnapshot>(emptySession(null));
   const lastActivityRef = useRef<number | null>(null);
   const completedRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
+  const onStartRef = useRef(onStart);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  useEffect(() => {
+    onStartRef.current = onStart;
+  }, [onStart]);
 
   // Doc switch: commit any in-progress session of the prior doc, then reset.
   useEffect(() => {
@@ -74,19 +110,25 @@ export function useSessionTracker({
     completedRef.current = false;
   }, [docPath]);
 
-  // Count any non-modifier keydown as a keystroke; first keystroke opens the
-  // session clock. The actual active-time accrual is done on the 5s tick.
+  // Only count keystrokes that are plausibly "writing" and only when focus is
+  // inside the CodeMirror editor. Drawer search, search panel input, and
+  // command shortcuts (Cmd+K, Cmd+N, Cmd+F) do not open a session.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (MODIFIER_ONLY_KEYS.has(e.key)) return;
+      if (!isWritingKey(e)) return;
+      if (!isEditorFocused()) return;
       const now = Date.now();
       const s = sessionRef.current;
       if (s.docPath === null) return;
-      if (s.startTime === null) {
+      const isFirstKey = s.startTime === null;
+      if (isFirstKey) {
         s.startTime = now;
       }
       s.keystrokes += 1;
       lastActivityRef.current = now;
+      if (isFirstKey) {
+        onStartRef.current?.();
+      }
     };
     window.addEventListener("keydown", handler, { capture: true });
     return () =>
