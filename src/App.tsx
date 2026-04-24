@@ -1,6 +1,6 @@
 import { useAtom, useSetAtom } from "jotai";
 import type { EditorView } from "@codemirror/view";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createDoc,
   deleteDoc,
@@ -22,6 +22,7 @@ import {
   workspacePathAtom,
 } from "./atoms";
 import { Drawer } from "./components/Drawer";
+import { FooterReveal } from "./components/FooterReveal";
 import { SearchPanel } from "./components/SearchPanel";
 import { SessionDialog } from "./components/SessionDialog";
 import { WritingSurface } from "./components/WritingSurface";
@@ -314,6 +315,8 @@ function App() {
     setPostSessionGrace(true);
   }, [resetSession]);
 
+  const liveWordCount = useMemo(() => wordCount(content), [content]);
+
   if (!ready || !currentDoc) {
     return <main className="bg-paper h-full w-full" />;
   }
@@ -327,6 +330,12 @@ function App() {
         docPath={currentDoc.path}
         onViewReady={handleViewReady}
       />
+      {mode === "writing" && dialogData === null && !searchOpen && (
+        <FooterReveal
+          wordCount={liveWordCount}
+          modifiedAt={currentDoc.modifiedAt}
+        />
+      )}
       {searchOpen && mode === "writing" && dialogData === null && (
         <SearchPanel view={editorViewRef.current} onClose={closeSearch} />
       )}

@@ -46,3 +46,17 @@ export function formatDuration(ms: number): string {
 export function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
 }
+
+export function formatRelativeTime(ts: number): string {
+  if (!ts) return "";
+  const diffSec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (diffSec < 30) return "just now";
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  if (diffSec < 604800) return `${Math.floor(diffSec / 86400)}d ago`;
+  const date = new Date(ts);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
