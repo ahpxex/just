@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: "--target universal-apple-darwin"
+            args: "--target universal-apple-darwin --bundles app"
           - platform: windows-latest
             args: ""
           - platform: ubuntu-22.04
@@ -50,19 +50,14 @@ jobs:
       - name: Install JS deps
         run: bun install
 
-      # All APPLE_* secrets are optional. When a secret is unset, tauri-action
-      # builds an unsigned bundle and skips notarization. Configure them in
-      # Settings -> Secrets and variables -> Actions to opt into signing.
+      # Unsigned build. To enable macOS signing + notarization, add the
+      # APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY
+      # / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID secrets and restore their
+      # env entries below. tauri-action auto-detects and applies them.
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: just ${{ github.ref_name }}
@@ -70,3 +65,21 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Zip macOS .app and attach to release
+        if: matrix.platform == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          APP=$(find src-tauri/target -type d -name "just.app" -path "*release/bundle/macos/*" | head -1)
+          if [ -z "$APP" ]; then
+            echo "macOS .app not found under src-tauri/target"
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          ASSET="just_${VERSION}_universal.zip"
+          cd "$(dirname "$APP")"
+          /usr/bin/zip -r "$ASSET" "just.app"
+          gh release upload "$TAG" "$ASSET" --repo "$REPO" --clobber
