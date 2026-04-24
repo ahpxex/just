@@ -250,6 +250,9 @@ mod win {
     // Virtual Key codes.
     const VK_BACK: u32 = 0x08;
     const VK_TAB: u32 = 0x09;
+    const VK_SHIFT_K: u32 = 0x10;
+    const VK_CONTROL_K: u32 = 0x11;
+    const VK_MENU_K: u32 = 0x12; // Alt
     const VK_ESCAPE: u32 = 0x1B;
     const VK_SPACE: u32 = 0x20;
     const VK_PAGE_UP: u32 = 0x21;
@@ -309,6 +312,14 @@ mod win {
     }
 
     fn should_block(vk: u32) -> bool {
+        // Modifier keydowns/keyups themselves must always pass through:
+        // blocking them breaks the downstream message-queue modifier
+        // tracking that our webview relies on to see e.g. Ctrl+C as a
+        // combination rather than a bare C press.
+        if matches!(vk, VK_CONTROL_K | VK_SHIFT_K | VK_MENU_K) {
+            return false;
+        }
+
         let (ctrl, alt, _shift, win) = modifier_state();
 
         // Windows key in any capacity → block (Start menu, Win+anything).
