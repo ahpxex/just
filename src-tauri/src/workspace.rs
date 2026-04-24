@@ -2,7 +2,7 @@ use chrono::Local;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{path::BaseDirectory, AppHandle, Manager};
 
 const STATE_FILE: &str = ".just/state.json";
@@ -223,4 +223,69 @@ pub fn write_state(app: AppHandle, state: AppState) -> Result<(), String> {
     let state_path = root.join(STATE_FILE);
     let content = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
     fs::write(&state_path, content).map_err(|e| e.to_string())
+}
+
+const TRASH_RETENTION_SECS: u64 = 30 * 24 * 60 * 60;
+
+// Called at app start. Best-effort: any I/O failure is swallowed silently
+// because a writer waking up to a launch error over trash cleanup is worse
+// than a few extra files sitting in .just/trash/ for another day.
+pub fn sweep_trash(app: &AppHandle) {
+    let Ok(root) = ensure_workspace(app) else {
+        return;
+    };
+    let trash = root.join(".just/trash");
+    let Ok(entries) = fs::read_dir(&trash) else {
+        return;
+    };
+    let Some(cutoff) = SystemTime::now().checked_sub(Duration::from_secs(TRASH_RETENTION_SECS))
+    else {
+        return;
+    };
+    for entry in entries.flatten() {
+        if let Ok(metadata) = entry.metadata() {
+            if let Ok(modified) = metadata.modified() {
+                if modified < cutoff {
+                    let _ = fs::remove_file(entry.path());
+                }
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub fn save_pasted_image(
+    app: AppHandle,
+    doc_path: String,
+    bytes: Vec<u8>,
+    extension: String,
+) -> Result<String, String> {
+    let root = ensure_workspace(&app)?;
+    let doc_stem = Path::new(&doc_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "invalid doc path".to_string())?
+        .to_string();
+    let media_dir = root.join(".just/media").join(&doc_stem);
+    fs::create_dir_all(&media_dir).map_err(|e| e.to_string())?;
+
+    // sanitize extension: only allow alnum + a few chars
+    let safe_ext: String = extension
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(8)
+        .collect();
+    let ext = if safe_ext.is_empty() {
+        "png".to_string()
+    } else {
+        safe_ext
+    };
+
+    let stamp = Local::now().format("%Y-%m-%d-%H%M%S-%3f");
+    let filename = format!("{}.{}", stamp, ext);
+    let full_path = media_dir.join(&filename);
+    fs::write(&full_path, &bytes).map_err(|e| e.to_string())?;
+
+    // Markdown relative path from the workspace root (where docs live).
+    Ok(format!(".just/media/{}/{}", doc_stem, filename))
 }

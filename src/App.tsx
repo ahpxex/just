@@ -324,6 +324,7 @@ function App() {
         content={content}
         onChange={handleChange}
         active={mode === "writing" && !searchOpen && dialogData === null}
+        docPath={currentDoc.path}
         onViewReady={handleViewReady}
       />
       {searchOpen && mode === "writing" && dialogData === null && (

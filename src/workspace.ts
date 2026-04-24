@@ -57,3 +57,14 @@ export const recordSession = (
   });
 
 export const requestExit = () => invoke<void>("request_exit");
+
+export const savePastedImage = (
+  docPath: string,
+  bytes: number[],
+  extension: string,
+) =>
+  invoke<string>("save_pasted_image", {
+    docPath,
+    bytes,
+    extension,
+  });

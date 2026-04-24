@@ -10,12 +10,14 @@ import {
 import { markdown } from "@codemirror/lang-markdown";
 import { search } from "@codemirror/search";
 import { tags } from "@lezer/highlight";
+import { savePastedImage } from "../workspace";
 
 interface EditorProps {
   initialContent: string;
   onChange: (content: string) => void;
   active?: boolean;
   onViewReady?: (view: EditorView | null) => void;
+  docPath: string | null;
 }
 
 const zenHighlight = HighlightStyle.define([
@@ -83,16 +85,40 @@ const zenTheme = EditorView.theme({
   ".cm-panels": { display: "none" },
 });
 
+async function insertPastedImage(
+  file: File,
+  mimeType: string,
+  view: EditorView,
+  docPath: string,
+) {
+  const buffer = await file.arrayBuffer();
+  const bytes = Array.from(new Uint8Array(buffer));
+  const extension = mimeType.split("/")[1] ?? "png";
+  try {
+    const relPath = await savePastedImage(docPath, bytes, extension);
+    const md = `![](${relPath})`;
+    const pos = view.state.selection.main.head;
+    view.dispatch({
+      changes: { from: pos, insert: md },
+      selection: { anchor: pos + md.length },
+    });
+  } catch (err) {
+    console.error("image paste failed:", err);
+  }
+}
+
 export function Editor({
   initialContent,
   onChange,
   active,
   onViewReady,
+  docPath,
 }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   const onViewReadyRef = useRef(onViewReady);
+  const docPathRef = useRef(docPath);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -101,6 +127,10 @@ export function Editor({
   useEffect(() => {
     onViewReadyRef.current = onViewReady;
   }, [onViewReady]);
+
+  useEffect(() => {
+    docPathRef.current = docPath;
+  }, [docPath]);
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -116,6 +146,25 @@ export function Editor({
         search({ top: true }),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         zenTheme,
+        EditorView.domEventHandlers({
+          paste(event, view) {
+            const items = event.clipboardData?.items;
+            if (!items) return false;
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              if (item && item.type.startsWith("image/")) {
+                event.preventDefault();
+                const file = item.getAsFile();
+                const path = docPathRef.current;
+                if (file && path) {
+                  void insertPastedImage(file, item.type, view, path);
+                }
+                return true;
+              }
+            }
+            return false;
+          },
+        }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString());

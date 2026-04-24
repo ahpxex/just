@@ -5,6 +5,7 @@ interface WritingSurfaceProps {
   content: string;
   onChange: (content: string) => void;
   active: boolean;
+  docPath: string | null;
   onViewReady?: (view: EditorView | null) => void;
 }
 
@@ -12,6 +13,7 @@ export function WritingSurface({
   content,
   onChange,
   active,
+  docPath,
   onViewReady,
 }: WritingSurfaceProps) {
   return (
@@ -20,6 +22,7 @@ export function WritingSurface({
         initialContent={content}
         onChange={onChange}
         active={active}
+        docPath={docPath}
         onViewReady={onViewReady}
       />
     </div>

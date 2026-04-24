@@ -50,6 +50,8 @@ pub fn run() {
                 eprintln!("[just] hotkey block unavailable: {err}");
             }
 
+            workspace::sweep_trash(app.app_handle());
+
             if let Some(window) = app.get_webview_window("main") {
                 if let Ok(Some(monitor)) = window.primary_monitor() {
                     let size = monitor.size();
@@ -68,6 +70,7 @@ pub fn run() {
             workspace::create_doc,
             workspace::delete_doc,
             workspace::restore_doc,
+            workspace::save_pasted_image,
             workspace::read_state,
             workspace::write_state,
             stats::read_stats,
