@@ -114,7 +114,70 @@ bun run tauri dev
 bun run tauri build
 ```
 
-The bundle lands in `src-tauri/target/release/bundle/`.
+The bundle lands in `src-tauri/target/release/bundle/`. The binary
+opens, but macOS Gatekeeper flags it as "unidentified developer"
+until it is signed and notarized.
+
+---
+
+## Signing and distribution
+
+### macOS
+
+A signed and notarized `.app` opens with a double-click on any Mac.
+An unsigned one requires right-click → Open on first launch and will
+be rejected on some managed machines outright.
+
+The signing identity and notarization credentials are never checked
+into the repo. Export them as environment variables before building;
+the Tauri CLI picks them up automatically.
+
+```sh
+export APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export APPLE_ID="you@example.com"
+export APPLE_PASSWORD="app-specific-password"   # from appleid.apple.com
+export APPLE_TEAM_ID="TEAMID"
+
+bun run tauri build
+```
+
+A thin wrapper is provided at `scripts/release.sh` that sanity-checks
+these variables are set and then runs the build.
+
+First-time setup:
+
+1. Join the Apple Developer Program ($99/year) and create a
+   *Developer ID Application* certificate in Xcode (*Settings →
+   Accounts → Manage Certificates*). The identity string appears in
+   Keychain Access.
+2. Generate an app-specific password at
+   https://appleid.apple.com → Sign-In and Security → App-Specific
+   Passwords. Use this for `APPLE_PASSWORD`, not your Apple ID login.
+3. Your `APPLE_TEAM_ID` is on https://developer.apple.com → Account →
+   Membership.
+
+### Windows
+
+Code signing requires a certificate from a Microsoft-trusted CA. The
+EV variant ($300+/year) is the one that clears SmartScreen warnings
+on first download. Configure `bundle.windows.certificateThumbprint`
+in `src-tauri/tauri.conf.json`, or set
+`TAURI_BUNDLE_WINDOWS_CERTIFICATE_THUMBPRINT` in the environment.
+
+Unsigned Windows builds run fine for internal use; end users see a
+SmartScreen warning and have to click *More info → Run anyway*.
+
+### Distribution
+
+`just` bundles macOS and Windows installers but ships no
+auto-updater — the app makes no outbound network requests by design
+(see `AGENTS.md`). Pick one of:
+
+- **GitHub Releases**: attach the artifacts from `target/release/bundle`
+  manually, tag each release. Users download and install.
+- **Homebrew Cask** (macOS): publish the signed `.dmg` to GitHub
+  Releases and submit a cask formula pointing at the release URL.
+- **Direct download** from a static site.
 
 ---
 
