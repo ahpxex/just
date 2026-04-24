@@ -1,0 +1,32 @@
+<!--
+  just — app icon source
+  Rendered with LXGW WenKai Regular. Requires the font to be installed
+  to preview in a browser / SVG viewer.
+
+  Shape follows the Big Sur+ macOS icon template: an 824x824 rounded
+  square (squircle-ish, r=185) centered on a 1024x1024 canvas with
+  transparent padding, so Dock/Finder displays it alongside first-party
+  icons without the "old square tile" look.
+
+  To regenerate all platform icon variants from this design, run:
+    magick -size 1024x1024 xc:none \
+      -fill "#faf8f3" \
+      -draw "roundrectangle 100,100 924,924 185,185" \
+      -font "LXGWWenKai-Regular.ttf" \
+      -pointsize 640 -fill "#1a1a18" \
+      -gravity center -annotate +0+0 "衹" \
+      src-tauri/icons/icon.png
+    bunx @tauri-apps/cli icon src-tauri/icons/icon.png
+-->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="#faf8f3"/>
+  <text
+    x="512"
+    y="512"
+    font-family="LXGW WenKai, serif"
+    font-size="640"
+    fill="#1a1a18"
+    text-anchor="middle"
+    dominant-baseline="central"
+  >衹</text>
+</svg>
