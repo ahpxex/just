@@ -7,6 +7,21 @@ use tauri::{path::BaseDirectory, AppHandle, Manager};
 
 const STATE_FILE: &str = ".just/state.json";
 
+// Write to a sibling temp file then rename over the target. POSIX and
+// Windows both guarantee the rename is atomic when source and destination
+// are on the same filesystem, so readers never see a half-written file.
+pub(crate) fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
+    let tmp_name = format!(
+        "{}.tmp",
+        path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("pending")
+    );
+    let tmp = path.with_file_name(tmp_name);
+    fs::write(&tmp, content)?;
+    fs::rename(&tmp, path)
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DocMeta {
@@ -139,7 +154,7 @@ pub fn read_doc(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn write_doc(path: String, content: String) -> Result<DocMeta, String> {
-    fs::write(&path, &content).map_err(|e| e.to_string())?;
+    atomic_write(Path::new(&path), content.as_bytes()).map_err(|e| e.to_string())?;
     build_meta(Path::new(&path))
 }
 
@@ -222,7 +237,7 @@ pub fn write_state(app: AppHandle, state: AppState) -> Result<(), String> {
     let root = ensure_workspace(&app)?;
     let state_path = root.join(STATE_FILE);
     let content = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
-    fs::write(&state_path, content).map_err(|e| e.to_string())
+    atomic_write(&state_path, content.as_bytes()).map_err(|e| e.to_string())
 }
 
 const TRASH_RETENTION_SECS: u64 = 30 * 24 * 60 * 60;
@@ -284,7 +299,7 @@ pub fn save_pasted_image(
     let stamp = Local::now().format("%Y-%m-%d-%H%M%S-%3f");
     let filename = format!("{}.{}", stamp, ext);
     let full_path = media_dir.join(&filename);
-    fs::write(&full_path, &bytes).map_err(|e| e.to_string())?;
+    atomic_write(&full_path, &bytes).map_err(|e| e.to_string())?;
 
     // Markdown relative path from the workspace root (where docs live).
     Ok(format!(".just/media/{}/{}", doc_stem, filename))

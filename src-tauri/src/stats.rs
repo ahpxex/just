@@ -43,7 +43,7 @@ fn save_db(app: &AppHandle, db: &StatsDb) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let text = serde_json::to_string_pretty(db).map_err(|e| e.to_string())?;
-    fs::write(&path, text).map_err(|e| e.to_string())
+    crate::workspace::atomic_write(&path, text.as_bytes()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

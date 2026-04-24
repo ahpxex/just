@@ -8,9 +8,14 @@ use tauri::{Manager, PhysicalPosition, PhysicalSize};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // Second launch: focus the existing window and do nothing else.
+            // "just" is meant to be the only writing session; a second
+            // instance fighting over state.json / stats.json is a bug.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }))
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
