@@ -53,7 +53,21 @@
    - 禁用 Dock/任务栏的右键退出。
    - 禁用菜单栏的 Quit 项（或直接不提供菜单栏）。
 4. **窗口不可切换**：尽最大能力阻止用户通过常规快捷键切换到其他窗口（在操作系统允许的范围内）。注意：不得违反 macOS/Windows 的辅助功能与系统级强制退出机制（如强制退出对话框、电源键、`Cmd+Option+Esc`），这是操作系统的最后保障，不得也无法绕过。
-5. **唯一的出口是写作本身**：用户打开 `just` 之后，唯一能做的就是不断写下去。
+5. **全局启动器屏蔽**（macOS + Windows）：**策略是 deny-by-default** —— 任何带修饰键（macOS: Cmd/Ctrl/Opt；Windows: Ctrl/Alt/Win）的按键事件默认被吞掉，**只放行写作必需的白名单**。这保证无论用户用什么启动器（Raycast / Spotlight / Alfred / 自定义 hotkey），只要落在修饰键组合上就被拦住。
+   - 白名单（通用思路）：
+     - 文本编辑：`Cmd/Ctrl + {A, C, V, X, Z, Y}` 和 `Cmd/Ctrl + Shift + Z`
+     - app 命令：`Cmd/Ctrl + {F, N, K}`
+     - 导航/删除：`Cmd/Ctrl + {arrows, Backspace, Delete, Home, End, PageUp/Down}`
+     - Option + {arrows, Backspace, Delete, 字母/数字/标点}（按词导航 + 重音符号输入）
+     - Shift 单修饰 + 任何键（选择、大写）
+     - `Cmd+Option+Esc` 强退对话框（OS 最后保障，必须保留）
+     - `Cmd+Option+Q`（仅 DEV 构建，开发退出）
+   - macOS：CGEventTap @ `kCGSessionEventTap`。**需要辅助功能权限**——首启触发系统权限对话框，用户"系统设置 → 隐私与安全 → 辅助功能"勾选 `just` 后，重启 app 生效。未授权时降级（tap 安装失败，app 正常跑但启动器能突破）。
+   - Windows：`SetWindowsHookExW(WH_KEYBOARD_LL)` + `GetAsyncKeyState` 查询实时修饰键状态。无需额外权限。
+   - Linux：不实现。
+   - **Focus-aware**：`Tauri::WindowEvent::Focused` 事件驱动一个 `AtomicBool`，只在 `just` 处于前台焦点时真正拦截。用户切到系统设置授权、处理系统通知等场景下，其他 app 里的 Cmd+C 等操作不受影响。
+6. **42 分钟 session 仪式后的合法出口**：完成一个 42 分钟的连续写作 session 后，出现仪式对话框，三个合法动作之一是 `leave`——此时允许真正退出 app。对话框关闭后若用户未按任何写作键，右上角保留 `leave` 按钮作为 grace 出口；用户一旦继续写（写作键触发），grace 关闭，锁定到下一个 session 结束。
+7. **唯一的出口是写作本身**：用户打开 `just` 之后，唯一能做的就是不断写下去。
 
 ### 关于"不可退出"的工程伦理
 
@@ -73,7 +87,10 @@
 - **编辑器核心**：CodeMirror 6 + `@codemirror/lang-markdown`。以内联渲染（inline rendering）的方式达成"所见即所写"，不做分栏预览。
 - **字体**：霞鹜文楷 LXGW WenKai（正文中文），EB Garamond 或系统衬线（正文英文）。字体文件本地打包，不走 CDN。
 - **Tauri 插件**：`plugin-fs`（文件读写）、`plugin-dialog`（首启选目录）、`plugin-os`（平台判断）。
-- **Rust 侧**：负责窗口生命周期、全屏锁定、退出拦截、文件系统读写。
+- **平台特化**：
+  - macOS：`objc2-app-kit` 设置 NSApp presentation options（隐 Dock/菜单栏、禁 Cmd+Tab）；`core-graphics` 装 CGEventTap 拦系统启动器；`ApplicationServices` 的 `AXIsProcessTrustedWithOptions` 触发辅助功能权限请求。
+  - Windows：`windows` crate 装 `WH_KEYBOARD_LL` 低级键盘钩子拦 Win / Alt+Tab / Alt+Space。
+- **Rust 侧**：负责窗口生命周期、全屏模拟、退出拦截、文件系统读写、统计持久化、全局热键屏蔽。
 - **前端**：只负责渲染与交互，不承担任何窗口控制逻辑。
 - **存储**：本地文件系统，文稿目录由用户在首次启动时选定（或默认到系统文档目录下的 `just/`）。
 - **无网络依赖**：软件不应发起任何出站网络请求。

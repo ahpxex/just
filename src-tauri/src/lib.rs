@@ -1,3 +1,4 @@
+mod hotkey_block;
 mod lock;
 mod stats;
 mod workspace;
@@ -45,6 +46,10 @@ pub fn run() {
                 lock::lock_presentation();
             }
 
+            if let Err(err) = hotkey_block::install() {
+                eprintln!("[just] hotkey block unavailable: {err}");
+            }
+
             if let Some(window) = app.get_webview_window("main") {
                 if let Ok(Some(monitor)) = window.primary_monitor() {
                     let size = monitor.size();
@@ -70,10 +75,14 @@ pub fn run() {
             stats::record_session,
             stats::request_exit,
         ])
-        .on_window_event(|_window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|_window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
             }
+            tauri::WindowEvent::Focused(focused) => {
+                hotkey_block::set_active(*focused);
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building just")
