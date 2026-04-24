@@ -68,3 +68,8 @@ export const savePastedImage = (
     bytes,
     extension,
   });
+
+export const hotkeyBlockHealthy = () => invoke<boolean>("hotkey_block_healthy");
+
+export const openAccessibilitySettings = () =>
+  invoke<void>("open_accessibility_settings");

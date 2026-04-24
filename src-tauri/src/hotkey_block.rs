@@ -20,8 +20,20 @@ use std::sync::atomic::{AtomicBool, Ordering};
 // Starts true so we lock immediately on launch, before the first Focused event.
 static ACTIVE: AtomicBool = AtomicBool::new(true);
 
+// Whether the last install attempt succeeded. False if e.g. macOS
+// Accessibility is not granted — the frontend surfaces this.
+static INSTALL_OK: AtomicBool = AtomicBool::new(true);
+
 pub fn set_active(active: bool) {
     ACTIVE.store(active, Ordering::Relaxed);
+}
+
+pub fn set_install_ok(ok: bool) {
+    INSTALL_OK.store(ok, Ordering::Relaxed);
+}
+
+pub fn is_healthy() -> bool {
+    INSTALL_OK.load(Ordering::Relaxed)
 }
 
 fn is_active() -> bool {

@@ -5,6 +5,21 @@ mod workspace;
 
 use tauri::{Manager, PhysicalPosition, PhysicalSize};
 
+#[tauri::command]
+fn hotkey_block_healthy() -> bool {
+    hotkey_block::is_healthy()
+}
+
+#[tauri::command]
+fn open_accessibility_settings() {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .spawn();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -53,6 +68,7 @@ pub fn run() {
 
             if let Err(err) = hotkey_block::install() {
                 eprintln!("[just] hotkey block unavailable: {err}");
+                hotkey_block::set_install_ok(false);
             }
 
             workspace::sweep_trash(app.app_handle());
@@ -82,6 +98,8 @@ pub fn run() {
             stats::read_doc_stats,
             stats::record_session,
             stats::request_exit,
+            hotkey_block_healthy,
+            open_accessibility_settings,
         ])
         .on_window_event(|_window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {

@@ -23,6 +23,7 @@ import {
 } from "./atoms";
 import { Drawer } from "./components/Drawer";
 import { FooterReveal } from "./components/FooterReveal";
+import { HotkeyBlockIndicator } from "./components/HotkeyBlockIndicator";
 import { SearchPanel } from "./components/SearchPanel";
 import { SessionDialog } from "./components/SessionDialog";
 import { WritingSurface } from "./components/WritingSurface";
@@ -370,6 +371,7 @@ function App() {
             leave
           </button>
         )}
+      <HotkeyBlockIndicator />
       {import.meta.env.DEV && (
         <button
           type="button"
